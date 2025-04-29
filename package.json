@@ -1,0 +1,19 @@
+{
+  "name": "jobs-deck",
+  "version": "1.0.0",
+  "description": "Worker para ler fila SQS e enviar mensagens de WhatsApp para o Deck",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "worker:whatsapp": "node workers/workerWhatsapp.js",
+    "worker:rastreio": "node workers/workerRastreio.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.797.0",
+    "aws-sdk": "^2.1420.0",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "luxon": "^3.6.1"
+  }
+}
