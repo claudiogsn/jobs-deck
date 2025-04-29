@@ -7,7 +7,9 @@ const PORT = process.env.PORT || 3000;
 
 // Rota para retornar logs em JSON
 app.get('/logs', (req, res) => {
-    res.json(getLogs());
+    const allLogs = getLogs();
+    const reversedLogs = [...allLogs].reverse(); // Mostrar logs mais recentes primeiro
+    res.json(reversedLogs);
 });
 
 // Página de visualização
@@ -24,18 +26,56 @@ app.get('/', (req, res) => {
     <body class="bg-gray-900 text-green-400 font-mono p-6">
       <div class="max-w-7xl mx-auto">
         <h1 class="text-3xl mb-4">📋 Logs em Tempo Real</h1>
-        <div class="bg-gray-800 p-4 rounded-lg shadow-lg h-[80vh] overflow-y-auto" id="logs">
+
+        <div class="flex flex-wrap gap-4 mb-4">
+          <button onclick="setFilter('ALL')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">Todos</button>
+          <button onclick="setFilter('workerWhatsapp')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded">WhatsApp</button>
+          <button onclick="setFilter('workerRastreio')" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded">Rastreio</button>
+          <button id="toggleButton" onclick="togglePause()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded">⏸️ Pausar</button>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg h-[75vh] overflow-y-auto" id="logs">
           Carregando logs...
         </div>
       </div>
 
       <script>
-        async function loadLogs() {
-          const res = await fetch('/logs');
-          const logs = await res.json();
-          document.getElementById('logs').innerText = logs.join('\\n');
+        let currentFilter = 'ALL';
+        let paused = false;
+        let intervalId;
+
+        function setFilter(filter) {
+          currentFilter = filter;
+          if (!paused) loadLogs();
         }
-        setInterval(loadLogs, 3000); // Atualiza a cada 3 segundos
+
+        function togglePause() {
+          paused = !paused;
+          const button = document.getElementById('toggleButton');
+          if (paused) {
+            button.innerText = '▶️ Retomar';
+          } else {
+            button.innerText = '⏸️ Pausar';
+            loadLogs();
+          }
+        }
+
+        async function loadLogs() {
+          if (paused) return;
+          try {
+            const res = await fetch('/logs');
+            const logs = await res.json();
+            const filteredLogs = logs.filter(log => {
+              if (currentFilter === 'ALL') return true;
+              return log.includes('[' + currentFilter + ' ');
+            });
+            document.getElementById('logs').innerText = filteredLogs.join('\\n');
+          } catch (err) {
+            document.getElementById('logs').innerText = 'Erro ao carregar logs.';
+          }
+        }
+
+        intervalId = setInterval(loadLogs, 3000);
         loadLogs();
       </script>
     </body>
