@@ -1,9 +1,24 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { getLogs } = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.get('/api-logs', (req, res) => {
+    const logFilePath = path.resolve(__dirname, 'logs/api.log');
+
+    fs.readFile(logFilePath, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: 'Erro ao ler o arquivo de log.' });
+        }
+
+        const lines = data.trim().split('\n').reverse(); // Linhas mais recentes primeiro
+        res.json(lines);
+    });
+});
 
 // Rota para retornar logs em JSON
 app.get('/logs', (req, res) => {
