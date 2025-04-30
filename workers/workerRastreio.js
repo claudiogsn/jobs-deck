@@ -8,7 +8,16 @@ const empresas = [42557, 42458, 41815];
 
 const server = process.env.DIPATCHER_URL;
 
-const LOG_PATH = path.resolve(__dirname, '../logs/api.log');
+const LOG_DIR = path.resolve(__dirname, '../logs');
+const LOG_PATH = path.resolve(LOG_DIR, 'api.log');
+
+// Cria diretório e arquivo se necessário
+if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+}
+if (!fs.existsSync(LOG_PATH)) {
+    fs.writeFileSync(LOG_PATH, '');
+}
 
 function appendApiLog(content) {
     const timestamp = new Date().toISOString();
