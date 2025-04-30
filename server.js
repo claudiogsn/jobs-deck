@@ -11,14 +11,77 @@ app.get('/api-logs', (req, res) => {
     const logFilePath = path.resolve(__dirname, 'logs/api.log');
 
     fs.readFile(logFilePath, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Erro ao ler o arquivo de log.' });
-        }
+        if (err) return res.status(500).json({ error: 'Erro ao ler o arquivo de log.' });
 
-        const lines = data.trim().split('\n').reverse(); // Linhas mais recentes primeiro
+        const lines = data.trim().split('\n').reverse(); // Mais recentes primeiro
         res.json(lines);
     });
 });
+
+app.get('/api-view', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+      <title>Logs API</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-900 text-white font-mono p-6">
+      <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl mb-4">📡 Logs da API (api.log)</h1>
+
+        <div class="flex gap-2 mb-4">
+          <button onclick="setFilter('ALL')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded">Todos</button>
+          <button onclick="setFilter('➡️')" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded">Requests ➡️</button>
+          <button onclick="setFilter('✅')" class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded">Sucesso ✅</button>
+          <button onclick="setFilter('❌')" class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded">Erros ❌</button>
+        </div>
+
+        <div id="logContainer" class="bg-gray-800 p-4 rounded h-[75vh] overflow-y-auto text-sm whitespace-pre-wrap"></div>
+      </div>
+
+      <script>
+        let currentFilter = 'ALL';
+
+        function setFilter(f) {
+          currentFilter = f;
+          fetchLogs();
+        }
+
+        async function fetchLogs() {
+          try {
+            const res = await fetch('/api-logs');
+            const data = await res.json();
+            const filtered = currentFilter === 'ALL'
+              ? data
+              : data.filter(line => line.includes(currentFilter));
+
+            const formatted = filtered.map(formatLog).join('\\n');
+            const container = document.getElementById('logContainer');
+            container.textContent = formatted;
+            container.scrollTop = 0; // rola para o topo (últimos logs primeiro)
+          } catch (err) {
+            document.getElementById('logContainer').textContent = 'Erro ao carregar logs.';
+          }
+        }
+
+        function formatLog(line) {
+          if (line.includes('✅')) return '✅ ' + line;
+          if (line.includes('❌')) return '❌ ' + line;
+          if (line.includes('➡️')) return '➡️ ' + line;
+          return line;
+        }
+
+        setInterval(fetchLogs, 3000);
+        fetchLogs();
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 
 // Rota para retornar logs em JSON
 app.get('/logs', (req, res) => {
