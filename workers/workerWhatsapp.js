@@ -2,6 +2,8 @@ require('dotenv').config();
 const { log } = require('../utils/logger');
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 const sqs = new SQSClient({
     region: process.env.AWS_REGION,
@@ -11,23 +13,43 @@ const sqs = new SQSClient({
     }
 });
 
-async function callDispatcherLog(mensagem, retorno) {
-    try {
-        await axios.post(process.env.DISPATCHER_URL, {
-            method: "salvarLogWhatsapp",
-            data: {
-                mensagem,
-                retorno
-            }
-        }, {
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
+// === Setup log file ===
+const LOG_DIR = path.resolve(__dirname, '../logs');
+const LOG_PATH = path.resolve(LOG_DIR, 'api.log');
 
-        log(`📥 Log enviado para dispatcher`, 'workerWhatsapp');
+if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+}
+if (!fs.existsSync(LOG_PATH)) {
+    fs.writeFileSync(LOG_PATH, '');
+}
+
+function appendApiLog(content) {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${content}\n`;
+    fs.appendFileSync(LOG_PATH, logEntry);
+}
+
+// === Envio para PHP Dispatcher ===
+async function callDispatcherLog(mensagem, retorno) {
+    const payload = {
+        method: "salvarLogWhatsapp",
+        data: {
+            mensagem,
+            retorno
+        }
+    };
+
+    appendApiLog(`➡️ REQUEST: salvarLogWhatsapp - ${JSON.stringify(payload)}`);
+
+    try {
+        const response = await axios.post(process.env.DISPATCHER_URL, payload);
+        appendApiLog(`✅ RESPONSE (salvarLogWhatsapp): ${JSON.stringify(response.data)}`);
+        return true;
     } catch (error) {
-        log('❌ Erro ao enviar log para dispatcher: ' + (error.response?.data || error.message), 'workerWhatsapp');
+        const errorContent = error.response?.data || error.message || 'Erro desconhecido';
+        appendApiLog(`❌ ERROR (salvarLogWhatsapp): ${JSON.stringify(errorContent)}`);
+        return false;
     }
 }
 
@@ -74,13 +96,16 @@ async function sendWhatsappMessage(data) {
         );
 
         log(`✅ Mensagem enviada para ${telefone}`, 'workerWhatsapp');
+        appendApiLog(`✅ Mensagem enviada para ${telefone} com ID: ${response.data.messages?.[0]?.id || 'desconhecido'}`);
 
-        // ✅ Chamar dispatcher para salvar log
+        // ✅ Enviar log para o PHP dispatcher
         await callDispatcherLog(data, response.data);
 
         return true;
     } catch (error) {
-        log('❌ Erro ao enviar mensagem WhatsApp: ' + (error.response?.data || error.message), 'workerWhatsapp');
+        const errorLog = error.response?.data || error.message;
+        log('❌ Erro ao enviar mensagem WhatsApp: ' + JSON.stringify(errorLog), 'workerWhatsapp');
+        appendApiLog(`❌ Erro ao enviar mensagem WhatsApp: ${JSON.stringify(errorLog)}`);
         return false;
     }
 }
@@ -122,6 +147,7 @@ async function processQueue() {
             }
         } catch (err) {
             log('❌ Erro no processamento da fila: ' + err.message, 'workerWhatsapp');
+            appendApiLog(`❌ Erro no loop de fila: ${err.message}`);
         }
     }
 }
