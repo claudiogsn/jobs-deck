@@ -11,6 +11,26 @@ const sqs = new SQSClient({
     }
 });
 
+async function callDispatcherLog(mensagem, retorno) {
+    try {
+        await axios.post(process.env.DISPATCHER_URL, {
+            method: "salvarLogWhatsapp",
+            data: {
+                mensagem,
+                retorno
+            }
+        }, {
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+
+        log(`📥 Log enviado para dispatcher`, 'workerWhatsapp');
+    } catch (error) {
+        log('❌ Erro ao enviar log para dispatcher: ' + (error.response?.data || error.message), 'workerWhatsapp');
+    }
+}
+
 async function sendWhatsappMessage(data) {
     const {
         identificador_conta,
@@ -22,7 +42,7 @@ async function sendWhatsappMessage(data) {
     } = data;
 
     try {
-        await axios.post(
+        const response = await axios.post(
             `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
             {
                 messaging_product: "whatsapp",
@@ -54,6 +74,10 @@ async function sendWhatsappMessage(data) {
         );
 
         log(`✅ Mensagem enviada para ${telefone}`, 'workerWhatsapp');
+
+        // ✅ Chamar dispatcher para salvar log
+        await callDispatcherLog(data, response.data);
+
         return true;
     } catch (error) {
         log('❌ Erro ao enviar mensagem WhatsApp: ' + (error.response?.data || error.message), 'workerWhatsapp');
