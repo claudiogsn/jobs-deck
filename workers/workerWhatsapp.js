@@ -3,8 +3,6 @@ const { log } = require('../utils/logger');
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
 const axios = require('axios');
 
-const TELEFONE_FIXO_TESTE = '5583999275543';
-
 const sqs = new SQSClient({
     region: process.env.AWS_REGION,
     credentials: {
@@ -13,17 +11,38 @@ const sqs = new SQSClient({
     }
 });
 
-async function sendWhatsappMessage(body) {
+async function sendWhatsappMessage(data) {
+    const {
+        identificador_conta,
+        cod,
+        nome_taxista,
+        placa_veiculo,
+        link_rastreio,
+        telefone
+    } = data;
+
     try {
         await axios.post(
             `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
             {
                 messaging_product: "whatsapp",
-                to: TELEFONE_FIXO_TESTE,
+                to: telefone,
                 type: "template",
                 template: {
-                    name: "hello_world",
-                    language: { code: "en_US" }
+                    name: "rota_de_entrega_1734458062788",
+                    language: { code: "pt_BR" },
+                    components: [
+                        {
+                            type: "body",
+                            parameters: [
+                                { type: "text", text: identificador_conta },
+                                { type: "text", text: cod },
+                                { type: "text", text: nome_taxista },
+                                { type: "text", text: placa_veiculo },
+                                { type: "text", text: link_rastreio }
+                            ]
+                        }
+                    ]
                 }
             },
             {
@@ -33,7 +52,8 @@ async function sendWhatsappMessage(body) {
                 }
             }
         );
-        log('✅ Mensagem enviada para ' + TELEFONE_FIXO_TESTE, 'workerWhatsapp');
+
+        log(`✅ Mensagem enviada para ${telefone}`, 'workerWhatsapp');
         return true;
     } catch (error) {
         log('❌ Erro ao enviar mensagem WhatsApp: ' + (error.response?.data || error.message), 'workerWhatsapp');
@@ -60,8 +80,11 @@ async function processQueue() {
 
             for (const message of data.Messages) {
                 const body = JSON.parse(message.Body);
-                log('📨 Processando mensagem...', 'workerWhatsapp');
-                const success = await sendWhatsappMessage(body);
+                const payload = typeof body === 'string' ? JSON.parse(body) : body;
+
+                log('📨 Processando mensagem para ' + payload.telefone, 'workerWhatsapp');
+
+                const success = await sendWhatsappMessage(payload);
 
                 if (success) {
                     await sqs.send(new DeleteMessageCommand({
