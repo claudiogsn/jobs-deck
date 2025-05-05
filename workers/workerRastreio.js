@@ -6,7 +6,7 @@ const axios = require('axios');
 
 const empresas = [42557, 42458, 41815];
 
-const server = process.env.DIPATCHER_URL;
+const server = process.env.DISPATCHER_URL;
 
 const LOG_DIR = path.resolve(__dirname, '../logs');
 const LOG_PATH = path.resolve(LOG_DIR, 'api.log');
