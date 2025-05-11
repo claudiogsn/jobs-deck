@@ -33,34 +33,32 @@ function appendApiLog(content) {
 // === Envio para PHP Dispatcher ===
 async function callDispatcherLog(mensagem, retorno) {
     const payload = {
-        method: "salvarLogWhatsapp",
+        method: "salvarLogNps",
         data: {
             mensagem,
             retorno
         }
     };
 
-    appendApiLog(`➡️ REQUEST: salvarLogWhatsapp - ${JSON.stringify(payload)}`);
+    appendApiLog(`➡️ REQUEST: salvarLogNps - ${JSON.stringify(payload)}`);
 
     try {
         const response = await axios.post(process.env.DISPATCHER_URL, payload);
-        appendApiLog(`✅ RESPONSE (salvarLogWhatsapp): ${JSON.stringify(response.data)}`);
+        appendApiLog(`✅ RESPONSE (salvarLogNps): ${JSON.stringify(response.data)}`);
         return true;
     } catch (error) {
         const errorContent = error.response?.data || error.message || 'Erro desconhecido';
-        appendApiLog(`❌ ERROR (salvarLogWhatsapp): ${JSON.stringify(errorContent)}`);
+        appendApiLog(`❌ ERROR (salvarLogNps): ${JSON.stringify(errorContent)}`);
         return false;
     }
 }
 
-async function sendWhatsappMessage(data) {
+async function sendMessage(data) {
     const {
+        telefone,
         identificador_conta,
         cod,
-        nome_taxista,
-        placa_veiculo,
-        link_rastreio,
-        telefone
+        link_nps,
     } = data;
 
     try {
@@ -71,7 +69,7 @@ async function sendWhatsappMessage(data) {
                 to: telefone,
                 type: "template",
                 template: {
-                    name: "rota_de_entrega_1734458062788",
+                    name: "nps_clientes_deck",
                     language: { code: "pt_BR" },
                     components: [
                         {
@@ -79,9 +77,9 @@ async function sendWhatsappMessage(data) {
                             parameters: [
                                 { type: "text", text: identificador_conta },
                                 { type: "text", text: cod },
-                                { type: "text", text: nome_taxista },
-                                { type: "text", text: placa_veiculo },
-                                { type: "text", text: link_rastreio }
+                                { type: "text", text: "Deck" },
+                                { type: "text", text: link_nps },
+
                             ]
                         }
                     ]
@@ -95,7 +93,7 @@ async function sendWhatsappMessage(data) {
             }
         );
 
-        log(`✅ Mensagem enviada para ${telefone}`, 'workerWhatsapp');
+        log(`✅ Mensagem enviada para ${telefone}`, 'workerNps');
         appendApiLog(`✅ Mensagem enviada para ${telefone} com ID: ${response.data.messages?.[0]?.id || 'desconhecido'}`);
 
         // ✅ Enviar log para o PHP dispatcher
@@ -104,7 +102,7 @@ async function sendWhatsappMessage(data) {
         return true;
     } catch (error) {
         const errorLog = error.response?.data || error.message;
-        log('❌ Erro ao enviar mensagem WhatsApp: ' + JSON.stringify(errorLog), 'workerWhatsapp');
+        log('❌ Erro ao enviar mensagem WhatsApp: ' + JSON.stringify(errorLog), 'workerNps');
         appendApiLog(`❌ Erro ao enviar mensagem WhatsApp: ${JSON.stringify(errorLog)}`);
         return false;
     }
@@ -114,7 +112,7 @@ async function processQueue() {
     while (true) {
         try {
             const command = new ReceiveMessageCommand({
-                QueueUrl: process.env.WHATSAPP_QUEUE_URL,
+                QueueUrl: process.env.NPS_QUEUE_URL,
                 MaxNumberOfMessages: 1,
                 WaitTimeSeconds: 10,
                 VisibilityTimeout: 300
@@ -123,7 +121,7 @@ async function processQueue() {
             const data = await sqs.send(command);
 
             if (!data.Messages || data.Messages.length === 0) {
-                log('📭 Nenhuma mensagem na fila, aguardando...', 'workerWhatsapp');
+                log('📭 Nenhuma mensagem na fila, aguardando...', 'workerNps');
                 continue;
             }
 
@@ -131,22 +129,22 @@ async function processQueue() {
                 const body = JSON.parse(message.Body);
                 const payload = typeof body === 'string' ? JSON.parse(body) : body;
 
-                log('📨 Processando mensagem para ' + payload.telefone, 'workerWhatsapp');
+                log('📨 Processando mensagem para ' + payload.telefone, 'workerNps');
 
-                const success = await sendWhatsappMessage(payload);
+                const success = await sendMessage(payload);
 
                 if (success) {
                     await sqs.send(new DeleteMessageCommand({
-                        QueueUrl: process.env.SQS_QUEUE_URL,
+                        QueueUrl: process.env.NPS_QUEUE_URL,
                         ReceiptHandle: message.ReceiptHandle
                     }));
-                    log('🗑️ Mensagem deletada da fila com sucesso.', 'workerWhatsapp');
+                    log('🗑️ Mensagem deletada da fila com sucesso.', 'workerNps');
                 } else {
-                    log('⚠️ Envio falhou, mensagem NÃO deletada.', 'workerWhatsapp');
+                    log('⚠️ Envio falhou, mensagem NÃO deletada.', 'workerNps');
                 }
             }
         } catch (err) {
-            log('❌ Erro no processamento da fila: ' + err.message, 'workerWhatsapp');
+            log('❌ Erro no processamento da fila: ' + err.message, 'workerNps');
             appendApiLog(`❌ Erro no loop de fila: ${err.message}`);
         }
     }

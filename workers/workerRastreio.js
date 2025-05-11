@@ -112,10 +112,42 @@ async function dispatchLoop() {
             await processEmpresa(empresa_id);
         }
 
+        // 👉 Aqui: processamento de NPS após todas as empresas
+        await dispatchNps();
+
         log('⏳ Aguardando 1 minuto para próxima execução do dispatcher...', 'workerRastreio');
         await new Promise(resolve => setTimeout(resolve, 60000));
     }
 }
+
+async function dispatchNps() {
+    log(`🔍 Buscando pedidos para NPS...`, 'workerNps');
+
+    const response = await callPHP('getOrdersToNps', {});
+
+    if (!response || !response.success) {
+        log(`⚠️ Nenhum pedido retornado para envio de NPS`, 'workerNps');
+        return;
+    }
+
+    const pedidos = response.data;
+
+    if (!Array.isArray(pedidos) || pedidos.length === 0) {
+        log(`⚠️ Lista de pedidos NPS está vazia`, 'workerNps');
+        return;
+    }
+
+    log(`📦 Enviando ${pedidos.length} pedidos para a fila NPS...`, 'workerNps');
+
+    const envio = await callPHP('sendNpsToQueue', pedidos);
+
+    if (envio) {
+        log(`✅ Envio para fila NPS finalizado`, 'workerNps');
+    } else {
+        log(`❌ Falha ao enviar para fila NPS`, 'workerNps');
+    }
+}
+
 
 module.exports = { dispatchLoop };
 

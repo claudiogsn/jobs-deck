@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "worker:whatsapp": "node workers/workerWhatsapp.js",
+    "worker:nps": "node workers/workerNps.js",
     "worker:rastreio": "node workers/workerRastreio.js"
   },
   "dependencies": {
