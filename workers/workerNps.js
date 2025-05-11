@@ -108,7 +108,7 @@ async function sendMessage(data) {
     }
 }
 
-async function processQueue() {
+async function processQueueNps() {
     while (true) {
         try {
             const command = new ReceiveMessageCommand({
@@ -150,8 +150,8 @@ async function processQueue() {
     }
 }
 
-module.exports = { processQueue };
+module.exports = { processQueueNps };
 
 if (require.main === module) {
-    processQueue();
+    processQueueNps();
 }
