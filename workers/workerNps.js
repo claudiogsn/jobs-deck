@@ -59,6 +59,7 @@ async function sendMessage(data) {
         identificador_conta,
         cod,
         link_nps,
+        nome_fantasia = "Deck Delivery",
     } = data;
 
     try {
@@ -77,7 +78,7 @@ async function sendMessage(data) {
                             parameters: [
                                 { type: "text", text: identificador_conta },
                                 { type: "text", text: cod },
-                                { type: "text", text: "Deck" },
+                                { type: "text", text: nome_fantasia },
                                 { type: "text", text: link_nps },
 
                             ]
