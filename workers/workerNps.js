@@ -74,13 +74,23 @@ async function sendMessage(data) {
                     language: { code: "pt_BR" },
                     components: [
                         {
+                            type: "header",
+                            parameters: [
+                                {
+                                    type: "image",
+                                    image: {
+                                        link: "https://vemprodeck.com.br/nps.png"
+                                    }
+                                }
+                            ]
+                        },
+                        {
                             type: "body",
                             parameters: [
                                 { type: "text", text: identificador_conta },
                                 { type: "text", text: cod },
                                 { type: "text", text: nome_fantasia },
-                                { type: "text", text: link_nps },
-
+                                { type: "text", text: link_nps }
                             ]
                         }
                     ]
@@ -93,6 +103,7 @@ async function sendMessage(data) {
                 }
             }
         );
+
 
         log(`✅ Mensagem enviada para ${telefone}`, 'workerNps');
         appendApiLog(`✅ Mensagem enviada para ${telefone} com ID: ${response.data.messages?.[0]?.id || 'desconhecido'}`);
